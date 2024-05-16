@@ -9,32 +9,34 @@ use \parallel\Runtime;
 $repository = new InMemoryStudentRepository();
 $studentList = $repository->all();
 
+$studentChunks = array_chunk($studentList, ceil(count($studentList) / 6));
+
 $runtimes = [];
 
-foreach ($studentList as $i => $student) {
-  echo 'Resizing ' . $student->fullName() . ' profile picture' . PHP_EOL;
-
+foreach ($studentChuncks as $i => $studentChunck) {
   $runtimes[$i] = new Runtime(__DIR__ . 'vendor/autoload.php');
+  $runtimes[$i]->run(function (array $students) {
+    foreach ($students as $student) {
+      echo 'Resizing ' . $student->fullName() . ' profile picture' . PHP_EOL;
+      $profilePicturePath = $student->profilePicturePath();
 
-  $runtimes[$i]->run(function (Student $student) {
-    $profilePicturePath = $student->profilePicturePath();
-  
-    [$width, $height] = getimagesize($profilePicturePath);
+      [$width, $height] = getimagesize($profilePicturePath);
 
-    $ratio = $height / $width;
+      $ratio = $height / $width;
 
-    $newWidth = 200;
-    $newHeight = 200 * $ratio;
+      $newWidth = 200;
+      $newHeight = 200 * $ratio;
 
-    $sourceImage = imagecreatefromjpeg($profilePicturePath);
-    $destinationImage = imagecreatetruecolor($newWidth, $newHeight);
-    imagecopyresampled($destinationImage, $sourceImage,0,0,0,0, $newWidth, $newHeight, $width, $height);
+      $sourceImage = imagecreatefromjpeg($profilePicturePath);
+      $destinationImage = imagecreatetruecolor($newWidth, $newHeight);
+      imagecopyresampled($destinationImage, $sourceImage, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
 
-    imagejpeg($destinationImage, __DIR__ . '/storage/resized/' . basename($profilePicturePath));
-  }, [$student]);
+      imagejpeg($destinationImage, __DIR__ . '/storage/resized/' . basename($profilePicturePath));
 
+      echo 'Finished resizing ' . $student->fullName() . ' profile picture' . PHP_EOL;
+    }
+  }, [$studentChunck]);
   // resizeTo200PixelsWidth($student->profilePicturePath());
-  echo 'Finished resizing ' . $student->fullName() . ' profile picture' . PHP_EOL;
 }
 
 foreach ($runtimes as $runtime) {
